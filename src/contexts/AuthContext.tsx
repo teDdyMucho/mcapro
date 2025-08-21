@@ -41,13 +41,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('clients')
           .select('*')
           .eq('email', session.user.email)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching client:', error);
           setUser(null);
-        } else {
+        } else if (client) {
           setUser(client);
+        } else {
+          setUser(null);
         }
       } else {
         setUser(null);
@@ -72,9 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('clients')
           .select('*')
           .eq('email', email)
-          .single();
+          .maybeSingle();
 
-        if (error && error.code === 'PGRST116') {
+        if (!client && !error) {
           // Client doesn't exist, create one
           const { data: newClient, error: createError } = await supabase
             .from('clients')
@@ -98,7 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return false;
         }
 
-        setUser(client);
+        if (client) {
+          setUser(client);
+        }
         setLoading(false);
         return true;
       }
