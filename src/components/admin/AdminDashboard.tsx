@@ -8,7 +8,7 @@ import { DatabaseTab } from './tabs/DatabaseTab';
 
 export function AdminDashboard() {
   const { adminUser, logout } = useAdmin();
-  const { applications } = useSharedData();
+  const { applications, loading } = useSharedData();
   const [activeTab, setActiveTab] = useState<'applications' | 'approvals' | 'database'>('applications');
 
   const stats = {
@@ -125,9 +125,18 @@ export function AdminDashboard() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-6 min-h-[400px]">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Loading data...</p>
+              </div>
+            ) : (
+              <>
             {activeTab === 'applications' && <ApplicationsTab />}
             {activeTab === 'database' && <DatabaseTab />}
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useSharedData } from './SharedDataContext';
-
-interface AdminUser {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'support';
-}
+import { supabase } from '../lib/supabase';
+import type { AdminUser } from '../lib/supabase';
 
 interface AdminContextType {
   adminUser: AdminUser | null;
@@ -22,41 +16,87 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedAdmin = localStorage.getItem('mcaAdmin');
-    if (savedAdmin) {
-      setAdminUser(JSON.parse(savedAdmin));
-    }
-    setLoading(false);
+    // Check for existing session
+    checkAdminUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        await checkAdminUser();
+      } else if (event === 'SIGNED_OUT') {
+        setAdminUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const checkAdminUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user?.email) {
+        // Get admin user data from database
+        const { data: admin, error } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('email', session.user.email)
+          .single();
+
+        if (error) {
+          console.error('Error fetching admin:', error);
+          setAdminUser(null);
+        } else {
+          setAdminUser(admin);
+        }
+      } else {
+        setAdminUser(null);
+      }
+    } catch (error) {
+      console.error('Error checking admin user:', error);
+      setAdminUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Demo admin credentials
-    if (email === 'admin@mcaportal.com' && password === 'admin123') {
-      const adminData = {
-        id: '1',
-        email: 'admin@mcaportal.com',
-        name: 'Admin User',
-        role: 'admin' as const
-      };
+    try {
+      // For demo purposes, we'll use a simple email check
+      // In production, you'd use proper Supabase auth
+      if (email === 'admin@mcaportal.com' && password === 'admin123') {
+        // Get admin user
+        const { data: admin, error } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('email', email)
+          .single();
+
+        if (error) {
+          console.error('Error fetching admin:', error);
+          setLoading(false);
+          return false;
+        }
+
+        setAdminUser(admin);
+        setLoading(false);
+        return true;
+      }
       
-      setAdminUser(adminData);
-      localStorage.setItem('mcaAdmin', JSON.stringify(adminData));
       setLoading(false);
-      return true;
+      return false;
+    } catch (error) {
+      console.error('Admin login error:', error);
+      setLoading(false);
+      return false;
     }
-    
-    setLoading(false);
-    return false;
   };
 
   const logout = () => {
     setAdminUser(null);
-    localStorage.removeItem('mcaAdmin');
+    supabase.auth.signOut();
   };
 
   return (

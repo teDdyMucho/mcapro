@@ -4,6 +4,8 @@ import { FundingDetailsStep } from './steps/FundingDetailsStep';
 import { DocumentUploadStep } from './steps/DocumentUploadStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useSharedData } from '../contexts/SharedDataContext';
 
 interface ApplicationFormProps {
   onComplete: () => void;
@@ -36,6 +38,8 @@ export interface ApplicationData {
 }
 
 export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFormProps) {
+  const { user } = useAuth();
+  const { addApplication } = useSharedData();
   const [currentStep, setCurrentStep] = useState(0);
   const [applicationData, setApplicationData] = useState<ApplicationData>({
     selectedLenders: [],
@@ -66,12 +70,37 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
   };
 
   const handleSubmit = () => {
-    // In a real app, this would submit to your backend
-    const message = resubmissionData 
-      ? `Application ${resubmissionData.applicationId} resubmitted successfully to new lenders!`
-      : 'Application submitted successfully!';
-    alert(message);
-    onComplete();
+    if (!user) return;
+
+    const selectedLenders = applicationData.selectedLenders.filter(l => l.selected);
+    
+    if (resubmissionData) {
+      // Handle resubmission (waterfall)
+      const message = `Application ${resubmissionData.applicationId} resubmitted successfully to new lenders!`;
+      alert(message);
+      onComplete();
+    } else {
+      // Create new application
+      const lenderIds = selectedLenders.map(l => l.id);
+      const lenderNames = selectedLenders.map(l => l.name);
+      
+      addApplication(
+        {
+          client_id: user.id,
+          amount: 50000, // Default amount - in real app this would come from form
+          status: 'under_review',
+          submitted_date: new Date().toISOString().split('T')[0]
+        },
+        lenderIds,
+        lenderNames
+      ).then((applicationId) => {
+        alert(`Application ${applicationId} submitted successfully!`);
+        onComplete();
+      }).catch((error) => {
+        console.error('Error submitting application:', error);
+        alert('Error submitting application. Please try again.');
+      });
+    }
   };
 
   const updateApplicationData = (section: keyof ApplicationData, data: any) => {

@@ -1,13 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import type { Application, LenderSubmission, Client } from '../lib/supabase';
 
-interface Application {
-  id: string;
+interface ApplicationWithDetails extends Application {
   clientName: string;
   clientEmail: string;
   company: string;
-  amount: number;
-  status: 'under_review' | 'approved' | 'declined' | 'funded';
-  submittedDate: string;
   submittedLenders: {
     id: string;
     name: string;
@@ -27,124 +25,77 @@ interface Application {
 }
 
 interface SharedDataContextType {
-  applications: Application[];
-  updateLenderStatus: (applicationId: string, lenderId: string, status: string, approvalAmount?: number, lenderEmail?: string, lenderPhone?: string, notes?: string) => void;
-  addApplication: (application: Application) => void;
-  getApplicationsForClient: (clientEmail: string) => Application[];
+  applications: ApplicationWithDetails[];
+  loading: boolean;
+  updateLenderStatus: (applicationId: string, lenderId: string, status: string, approvalAmount?: number, lenderEmail?: string, lenderPhone?: string, notes?: string) => Promise<void>;
+  addApplication: (application: Omit<Application, 'id' | 'created_at'>, lenderIds: string[], lenderNames: string[]) => Promise<string>;
+  getApplicationsForClient: (clientEmail: string) => ApplicationWithDetails[];
+  refreshData: () => Promise<void>;
 }
 
 const SharedDataContext = createContext<SharedDataContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'mca_applications_data';
-
 export function SharedDataProvider({ children }: { children: React.ReactNode }) {
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load data from localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        setApplications(parsedData);
-      } catch (error) {
-        console.error('Error loading saved data:', error);
-        // Initialize with default data if parsing fails
-        initializeDefaultData();
-      }
-    } else {
-      // Initialize with default data if no saved data exists
-      initializeDefaultData();
-    }
+    loadApplications();
   }, []);
 
-  // Save data to localStorage whenever applications change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-  }, [applications]);
+  const loadApplications = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch applications with client data and lender submissions
+      const { data: appsData, error: appsError } = await supabase
+        .from('applications')
+        .select(`
+          *,
+          client:clients(*),
+          lender_submissions(*),
+          documents(*)
+        `)
+        .order('created_at', { ascending: false });
 
-  const initializeDefaultData = () => {
-    const defaultApplications: Application[] = [
-      {
-        id: 'APP-2024-001',
-        clientName: 'John Smith',
-        clientEmail: 'demo@company.com',
-        company: 'Smith Enterprises LLC',
-        amount: 50000,
-        status: 'under_review',
-        submittedDate: '2024-01-15',
-        submittedLenders: [
-          { id: 'rapid-capital', name: 'Rapid Capital Solutions', status: 'under_review' },
-          { id: 'business-funding', name: 'Business Funding Network', status: 'declined', notes: 'Credit score too low' },
-          { id: 'merchant-advance', name: 'Merchant Advance Pro', status: 'under_review' }
-        ],
-        documents: {
-          fundingApplication: 'funding-app-001.pdf',
-          bankStatement1: 'bank-stmt-1-001.pdf',
-          bankStatement2: 'bank-stmt-2-001.pdf',
-          bankStatement3: 'bank-stmt-3-001.pdf'
-        }
-      },
-      {
-        id: 'APP-2024-002',
-        clientName: 'John Smith',
-        clientEmail: 'demo@company.com',
-        company: 'Smith Enterprises LLC',
-        amount: 75000,
-        status: 'approved',
-        submittedDate: '2024-01-10',
-        submittedLenders: [
-          { 
-            id: 'capital-bridge', 
-            name: 'Capital Bridge Financial', 
-            status: 'approved',
-            approvalAmount: 65000,
-            lenderEmail: 'approvals@capitalbridge.com',
-            lenderPhone: '(555) 123-4567',
-            updatedDate: '2024-01-12',
-            notes: 'Approved with conditions - 18 month term'
-          },
-          { id: 'premier-funding', name: 'Premier Funding Group', status: 'declined', notes: 'Insufficient revenue' }
-        ],
-        documents: {
-          fundingApplication: 'funding-app-002.pdf',
-          bankStatement1: 'bank-stmt-1-002.pdf',
-          bankStatement2: 'bank-stmt-2-002.pdf',
-          bankStatement3: 'bank-stmt-3-002.pdf'
-        }
-      },
-      {
-        id: 'APP-2023-045',
-        clientName: 'John Smith',
-        clientEmail: 'demo@company.com',
-        company: 'Smith Enterprises LLC',
-        amount: 25000,
-        status: 'funded',
-        submittedDate: '2023-12-08',
-        submittedLenders: [
-          { 
-            id: 'quick-cash', 
-            name: 'QuickCash Business', 
-            status: 'funded',
-            approvalAmount: 25000,
-            lenderEmail: 'funding@quickcash.com',
-            lenderPhone: '(555) 987-6543',
-            updatedDate: '2023-12-10',
-            notes: 'Funded successfully - 12 month term'
-          }
-        ],
-        documents: {
-          fundingApplication: 'funding-app-045.pdf',
-          bankStatement1: 'bank-stmt-1-045.pdf',
-          bankStatement2: 'bank-stmt-2-045.pdf',
-          bankStatement3: 'bank-stmt-3-045.pdf'
-        }
+      if (appsError) {
+        console.error('Error fetching applications:', appsError);
+        return;
       }
-    ];
-    setApplications(defaultApplications);
+
+      // Transform data to match the expected format
+      const transformedApps: ApplicationWithDetails[] = (appsData || []).map(app => ({
+        ...app,
+        clientName: app.client?.name || '',
+        clientEmail: app.client?.email || '',
+        company: app.client?.company || '',
+        submittedLenders: (app.lender_submissions || []).map((submission: LenderSubmission) => ({
+          id: submission.lender_id,
+          name: submission.lender_name,
+          status: submission.status,
+          approvalAmount: submission.approval_amount,
+          lenderEmail: submission.lender_email,
+          lenderPhone: submission.lender_phone,
+          updatedDate: submission.updated_date,
+          notes: submission.notes
+        })),
+        documents: {
+          fundingApplication: app.documents?.find((d: any) => d.document_type === 'funding_application')?.file_name || '',
+          bankStatement1: app.documents?.find((d: any) => d.document_type === 'bank_statement_1')?.file_name || '',
+          bankStatement2: app.documents?.find((d: any) => d.document_type === 'bank_statement_2')?.file_name || '',
+          bankStatement3: app.documents?.find((d: any) => d.document_type === 'bank_statement_3')?.file_name || ''
+        }
+      }));
+
+      setApplications(transformedApps);
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateLenderStatus = (
+  const updateLenderStatus = async (
     applicationId: string, 
     lenderId: string, 
     status: string, 
@@ -153,24 +104,35 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
     lenderPhone?: string,
     notes?: string
   ) => {
-    setApplications(prev => prev.map(app => {
-      if (app.id === applicationId) {
-        const updatedLenders = app.submittedLenders.map(lender => {
-          if (lender.id === lenderId) {
-            return {
-              ...lender,
-              status: status as any,
-              approvalAmount,
-              lenderEmail,
-              lenderPhone,
-              notes,
-              updatedDate: new Date().toISOString().split('T')[0]
-            };
-          }
-          return lender;
-        });
+    try {
+      // Update lender submission in database
+      const { error } = await supabase
+        .from('lender_submissions')
+        .update({
+          status,
+          approval_amount: approvalAmount,
+          lender_email: lenderEmail,
+          lender_phone: lenderPhone,
+          notes,
+          updated_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('application_id', applicationId)
+        .eq('lender_id', lenderId);
 
-        // Update overall application status
+      if (error) {
+        console.error('Error updating lender status:', error);
+        return;
+      }
+
+      // Update application status based on lender responses
+      const app = applications.find(a => a.id === applicationId);
+      if (app) {
+        const updatedLenders = app.submittedLenders.map(l => 
+          l.id === lenderId 
+            ? { ...l, status: status as any, approvalAmount, lenderEmail, lenderPhone, notes, updatedDate: new Date().toISOString().split('T')[0] }
+            : l
+        );
+
         let newAppStatus = app.status;
         if (status === 'funded') {
           newAppStatus = 'funded';
@@ -180,30 +142,104 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
           newAppStatus = 'declined';
         }
 
-        return {
-          ...app,
-          submittedLenders: updatedLenders,
-          status: newAppStatus as any
-        };
+        // Update application status in database
+        await supabase
+          .from('applications')
+          .update({ status: newAppStatus })
+          .eq('id', applicationId);
       }
-      return app;
-    }));
+
+      // Refresh data
+      await loadApplications();
+    } catch (error) {
+      console.error('Error updating lender status:', error);
+    }
   };
 
-  const addApplication = (application: Application) => {
-    setApplications(prev => [...prev, application]);
+  const addApplication = async (
+    applicationData: Omit<Application, 'id' | 'created_at'>, 
+    lenderIds: string[], 
+    lenderNames: string[]
+  ): Promise<string> => {
+    try {
+      // Generate application ID
+      const year = new Date().getFullYear();
+      const count = applications.filter(app => app.id.startsWith(`APP-${year}`)).length + 1;
+      const applicationId = `APP-${year}-${count.toString().padStart(3, '0')}`;
+
+      // Insert application
+      const { error: appError } = await supabase
+        .from('applications')
+        .insert({
+          id: applicationId,
+          ...applicationData
+        });
+
+      if (appError) {
+        console.error('Error creating application:', appError);
+        throw appError;
+      }
+
+      // Insert lender submissions
+      const lenderSubmissions = lenderIds.map((lenderId, index) => ({
+        application_id: applicationId,
+        lender_id: lenderId,
+        lender_name: lenderNames[index],
+        status: 'under_review'
+      }));
+
+      const { error: lenderError } = await supabase
+        .from('lender_submissions')
+        .insert(lenderSubmissions);
+
+      if (lenderError) {
+        console.error('Error creating lender submissions:', lenderError);
+        throw lenderError;
+      }
+
+      // Insert document records (placeholder for now)
+      const documents = [
+        { application_id: applicationId, document_type: 'funding_application', file_name: `funding-app-${applicationId}.pdf` },
+        { application_id: applicationId, document_type: 'bank_statement_1', file_name: `bank-stmt-1-${applicationId}.pdf` },
+        { application_id: applicationId, document_type: 'bank_statement_2', file_name: `bank-stmt-2-${applicationId}.pdf` },
+        { application_id: applicationId, document_type: 'bank_statement_3', file_name: `bank-stmt-3-${applicationId}.pdf` }
+      ];
+
+      const { error: docError } = await supabase
+        .from('documents')
+        .insert(documents);
+
+      if (docError) {
+        console.error('Error creating documents:', docError);
+        // Don't throw here as documents are not critical
+      }
+
+      // Refresh data
+      await loadApplications();
+      
+      return applicationId;
+    } catch (error) {
+      console.error('Error adding application:', error);
+      throw error;
+    }
   };
 
   const getApplicationsForClient = (clientEmail: string) => {
     return applications.filter(app => app.clientEmail === clientEmail);
   };
 
+  const refreshData = async () => {
+    await loadApplications();
+  };
+
   return (
     <SharedDataContext.Provider value={{ 
       applications, 
+      loading,
       updateLenderStatus, 
       addApplication,
-      getApplicationsForClient
+      getApplicationsForClient,
+      refreshData
     }}>
       {children}
     </SharedDataContext.Provider>

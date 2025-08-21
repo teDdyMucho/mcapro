@@ -10,14 +10,14 @@ interface DashboardProps {
 
 export function Dashboard({ onStartApplication, onResubmitApplication }: DashboardProps) {
   const { user } = useAuth();
-  const { getApplicationsForClient } = useSharedData();
+  const { getApplicationsForClient, loading } = useSharedData();
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
 
   // Get applications for the current user
-  const applications = getApplicationsForClient(user?.email || '').map(app => ({
+  const applications = user ? getApplicationsForClient(user.email).map(app => ({
     ...app,
     businessName: app.company
-  }));
+  })) : [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -161,7 +161,13 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
               </div>
             </div>
 
-            <div className="space-y-4">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 mt-2">Loading applications...</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
               {filteredApplications.map((app) => (
                 <div
                   key={app.id}
@@ -219,7 +225,13 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
                   </div>
                 </div>
               ))}
-            </div>
+              {filteredApplications.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No applications found.</p>
+                </div>
+              )}
+              </div>
+            )}
           </div>
         </div>
 

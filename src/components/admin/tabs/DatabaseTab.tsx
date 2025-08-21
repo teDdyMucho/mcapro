@@ -3,7 +3,7 @@ import { Database, Download, Upload, Trash2, Search, Plus } from 'lucide-react';
 import { useSharedData } from '../../../contexts/SharedDataContext';
 
 export function DatabaseTab() {
-  const { applications } = useSharedData();
+  const { applications, loading } = useSharedData();
   const [searchTerm, setSearchTerm] = useState('');
 
   const exportData = () => {
@@ -106,7 +106,13 @@ export function DatabaseTab() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading database...</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -181,7 +187,8 @@ export function DatabaseTab() {
             </tbody>
           </table>
         </div>
-      </div>
+        </div>
+      )}
 
       {filteredApplications.length === 0 && (
         <div className="text-center py-12">

@@ -3,7 +3,7 @@ import { Search, Filter, Eye, FileText, Calendar, Building2, Edit, Save, X, Doll
 import { useSharedData } from '../../../contexts/SharedDataContext';
 
 export function ApplicationsTab() {
-  const { applications, updateLenderStatus } = useSharedData();
+  const { applications, updateLenderStatus, loading } = useSharedData();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
@@ -123,7 +123,13 @@ export function ApplicationsTab() {
       </div>
 
       {/* Applications List */}
-      <div className="space-y-4">
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading applications...</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
         {filteredApplications.map((app) => (
           <div
             key={app.id}
@@ -322,7 +328,8 @@ export function ApplicationsTab() {
             )}
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       {filteredApplications.length === 0 && (
         <div className="text-center py-12">
