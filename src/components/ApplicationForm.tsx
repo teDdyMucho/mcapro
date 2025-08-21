@@ -65,9 +65,30 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
     
     if (resubmissionData) {
       // Handle resubmission (waterfall)
-      const message = `Application ${resubmissionData.applicationId} resubmitted successfully to new lenders!`;
-      alert(message);
-      onComplete();
+      // Create new lender submissions for the resubmitted application
+      const newLenderSubmissions = selectedLenderIds.map(lenderId => {
+        const lender = selectedLenderObjects.find(l => l.id === lenderId);
+        return {
+          application_id: resubmissionData.applicationId,
+          lender_id: lenderId,
+          lender_name: lender?.name || 'Unknown Lender',
+          status: 'under_review' as const
+        };
+      });
+
+      // Insert new lender submissions
+      Promise.all([
+        ...newLenderSubmissions.map(submission => 
+          supabase.from('lender_submissions').insert(submission)
+        )
+      ]).then(() => {
+        const message = `Application ${resubmissionData.applicationId} resubmitted successfully to ${selectedLenderIds.length} new lenders!`;
+        alert(message);
+        onComplete();
+      }).catch((error) => {
+        console.error('Error resubmitting application:', error);
+        alert('Error resubmitting application. Please try again.');
+      });
     } else {
       // Create new application
       const lenderIds = selectedLenderObjects.map(l => l.id);
@@ -76,7 +97,7 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
       addApplication(
         {
           client_id: user.id,
-          amount: 50000, // Default amount - in real app this would come from form
+          amount: 50000, // Default amount - in real app this would come from funding details form
           status: 'under_review',
           submitted_date: new Date().toISOString().split('T')[0]
         },

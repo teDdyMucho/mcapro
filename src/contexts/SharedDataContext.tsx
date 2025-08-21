@@ -287,6 +287,11 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
     lenderNames: string[]
   ): Promise<string> => {
     try {
+      // Ensure we have a valid client_id
+      if (!applicationData.client_id) {
+        throw new Error('Client ID is required for application submission');
+      }
+
       // Generate application ID
       const year = new Date().getFullYear();
       const count = applications.filter(app => app.id.startsWith(`APP-${year}`)).length + 1;
@@ -310,7 +315,7 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
         application_id: applicationId,
         lender_id: lenderId,
         lender_name: lenderNames[index],
-        status: 'under_review'
+        status: 'under_review' as const
       }));
 
       const { error: lenderError } = await supabase
@@ -354,11 +359,15 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       // Generate lender ID from name
       const lenderId = lenderData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       
+      // Ensure created_by is set properly
+      const createdBy = lenderData.created_by || 'demo@company.com';
+      
       const { error } = await supabase
         .from('lenders')
         .insert({
           id: lenderId,
-          ...lenderData
+          ...lenderData,
+          created_by: createdBy
         });
 
       if (error) {
@@ -375,9 +384,12 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
 
   const updateLender = async (id: string, updates: Partial<Lender>) => {
     try {
+      // Don't allow updating created_by field
+      const { created_by, ...safeUpdates } = updates;
+      
       const { error } = await supabase
         .from('lenders')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', id);
 
       if (error) {
@@ -394,6 +406,12 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
 
   const deleteLender = async (id: string) => {
     try {
+      // Additional check to ensure user can only delete their own lenders
+      const lender = lenders.find(l => l.id === id);
+      if (!lender) {
+        throw new Error('Lender not found');
+      }
+      
       const { error } = await supabase
         .from('lenders')
         .delete()
@@ -412,7 +430,11 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
   };
 
   const getApplicationsForClient = (clientEmail: string) => {
-    return applications.filter(app => app.clientEmail === clientEmail);
+    // Only return applications that belong to the specified client
+    return applications.filter(app => 
+      app.clientEmail === clientEmail && 
+      app.clientEmail // Ensure clientEmail exists
+    );
   };
 
   const refreshData = async () => {

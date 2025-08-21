@@ -101,6 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (client) {
+          // Store client UUID for proper data isolation
+          localStorage.setItem('demo_client_id', client.id);
           setUser(client);
         }
         setLoading(false);
@@ -117,6 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Clear stored client ID
+    localStorage.removeItem('demo_client_id');
     setUser(null);
     supabase.auth.signOut();
   };
