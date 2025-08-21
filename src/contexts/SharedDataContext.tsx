@@ -115,6 +115,12 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
 
       if (error) {
         console.error('Error fetching lenders:', error);
+        // If lenders table doesn't exist, use default lenders
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          console.log('Lenders table not found, using default lenders');
+          setLenders(getDefaultLenders());
+          return;
+        }
         return;
       }
 
@@ -125,6 +131,74 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       setLoadingLenders(false);
     }
   };
+
+  const getDefaultLenders = () => [
+    {
+      id: 'rapid-advance',
+      name: 'Rapid Advance',
+      logo: 'RA',
+      description: 'Fast funding for growing businesses with flexible terms and quick approval process.',
+      min_amount: 10000,
+      max_amount: 500000,
+      time_frame: '24-48 hours',
+      requirements: ['6+ months in business', 'Monthly revenue $10k+', 'Credit score 550+'],
+      is_default: true,
+      created_by: 'system',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'business-capital',
+      name: 'Business Capital Solutions',
+      logo: 'BC',
+      description: 'Comprehensive business funding solutions with competitive rates and personalized service.',
+      min_amount: 25000,
+      max_amount: 1000000,
+      time_frame: '2-5 business days',
+      requirements: ['12+ months in business', 'Monthly revenue $25k+', 'Credit score 600+'],
+      is_default: true,
+      created_by: 'system',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'merchant-funding',
+      name: 'Merchant Funding Group',
+      logo: 'MF',
+      description: 'Specialized in merchant cash advances with same-day approval and funding.',
+      min_amount: 5000,
+      max_amount: 250000,
+      time_frame: 'Same day',
+      requirements: ['3+ months in business', 'Monthly revenue $5k+', 'Credit score 500+'],
+      is_default: true,
+      created_by: 'system',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'capital-express',
+      name: 'Capital Express',
+      logo: 'CE',
+      description: 'Express funding solutions for small to medium businesses with minimal paperwork.',
+      min_amount: 15000,
+      max_amount: 750000,
+      time_frame: '1-3 business days',
+      requirements: ['9+ months in business', 'Monthly revenue $15k+', 'Credit score 575+'],
+      is_default: true,
+      created_by: 'system',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 'funding-solutions',
+      name: 'Funding Solutions Inc',
+      logo: 'FS',
+      description: 'Tailored funding solutions with flexible repayment options and competitive rates.',
+      min_amount: 20000,
+      max_amount: 2000000,
+      time_frame: '3-7 business days',
+      requirements: ['18+ months in business', 'Monthly revenue $20k+', 'Credit score 625+'],
+      is_default: true,
+      created_by: 'system',
+      created_at: new Date().toISOString()
+    }
+  ];
 
   const updateLenderStatus = async (
     applicationId: string, 
