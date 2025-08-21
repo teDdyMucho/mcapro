@@ -15,20 +15,8 @@ interface ApplicationFormProps {
   } | null;
 }
 
-export interface Lender {
-  id: string;
-  name: string;
-  logo: string;
-  description: string;
-  minAmount: number;
-  maxAmount: number;
-  timeFrame: string;
-  requirements: string[];
-  selected: boolean;
-}
-
 export interface ApplicationData {
-  selectedLenders: Lender[];
+  selectedLenders: string[];
   documents: {
     fundingApplication: File | null;
     bankStatement1: File | null;
@@ -39,7 +27,7 @@ export interface ApplicationData {
 
 export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFormProps) {
   const { user } = useAuth();
-  const { addApplication } = useSharedData();
+  const { addApplication, lenders } = useSharedData();
   const [currentStep, setCurrentStep] = useState(0);
   const [applicationData, setApplicationData] = useState<ApplicationData>({
     selectedLenders: [],
@@ -72,7 +60,8 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
   const handleSubmit = () => {
     if (!user) return;
 
-    const selectedLenders = applicationData.selectedLenders.filter(l => l.selected);
+    const selectedLenderIds = applicationData.selectedLenders;
+    const selectedLenderObjects = lenders.filter(l => selectedLenderIds.includes(l.id));
     
     if (resubmissionData) {
       // Handle resubmission (waterfall)
@@ -81,8 +70,8 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
       onComplete();
     } else {
       // Create new application
-      const lenderIds = selectedLenders.map(l => l.id);
-      const lenderNames = selectedLenders.map(l => l.name);
+      const lenderIds = selectedLenderObjects.map(l => l.id);
+      const lenderNames = selectedLenderObjects.map(l => l.name);
       
       addApplication(
         {

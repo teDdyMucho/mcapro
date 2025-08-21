@@ -59,3 +59,17 @@ export interface AdminUser {
   role: string;
   created_at: string;
 }
+
+export interface Lender {
+  id: string;
+  name: string;
+  logo: string;
+  description: string;
+  min_amount: number;
+  max_amount: number;
+  time_frame: string;
+  requirements: string[];
+  is_default: boolean;
+  created_by: string;
+  created_at: string;
+}

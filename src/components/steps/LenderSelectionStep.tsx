@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Building2, DollarSign, Clock, CheckCircle, Circle, X } from 'lucide-react';
-import { ApplicationData, Lender } from '../ApplicationForm';
+import { Building2, DollarSign, Clock, CheckCircle, Circle, X, Plus, Edit, Trash2 } from 'lucide-react';
+import { ApplicationData } from '../ApplicationForm';
+import { useSharedData } from '../../contexts/SharedDataContext';
+import { useAuth } from '../../contexts/AuthContext';
+import type { Lender } from '../../lib/supabase';
 
 interface LenderSelectionStepProps {
   data: ApplicationData;
@@ -12,79 +15,20 @@ interface LenderSelectionStepProps {
   } | null;
 }
 
-const availableLenders: Lender[] = [
-  {
-    id: 'rapid-capital',
-    name: 'Rapid Capital Solutions',
-    logo: 'RC',
-    description: 'Fast approval process with competitive rates for established businesses',
-    minAmount: 10000,
-    maxAmount: 500000,
-    timeFrame: '24-48 hours',
-    requirements: ['6+ months in business', 'Min $10K monthly revenue', 'Credit score 550+'],
-    selected: false
-  },
-  {
-    id: 'business-funding',
-    name: 'Business Funding Network',
-    logo: 'BF',
-    description: 'Flexible terms and high approval rates for various industries',
-    minAmount: 5000,
-    maxAmount: 750000,
-    timeFrame: '1-3 business days',
-    requirements: ['3+ months in business', 'Min $8K monthly revenue', 'No bankruptcies'],
-    selected: false
-  },
-  {
-    id: 'merchant-advance',
-    name: 'Merchant Advance Pro',
-    logo: 'MA',
-    description: 'Specialized in retail and restaurant funding with same-day decisions',
-    minAmount: 15000,
-    maxAmount: 300000,
-    timeFrame: 'Same day',
-    requirements: ['12+ months in business', 'Min $15K monthly revenue', 'Credit score 600+'],
-    selected: false
-  },
-  {
-    id: 'capital-bridge',
-    name: 'Capital Bridge Financial',
-    logo: 'CB',
-    description: 'Large funding amounts for growing businesses with excellent support',
-    minAmount: 25000,
-    maxAmount: 1000000,
-    timeFrame: '2-5 business days',
-    requirements: ['18+ months in business', 'Min $25K monthly revenue', 'Credit score 650+'],
-    selected: false
-  },
-  {
-    id: 'quick-cash',
-    name: 'QuickCash Business',
-    logo: 'QC',
-    description: 'Emergency funding solutions with minimal documentation required',
-    minAmount: 3000,
-    maxAmount: 100000,
-    timeFrame: '2-6 hours',
-    requirements: ['3+ months in business', 'Min $5K monthly revenue', 'Active bank account'],
-    selected: false
-  },
-  {
-    id: 'premier-funding',
-    name: 'Premier Funding Group',
-    logo: 'PF',
-    description: 'Premium lender with excellent rates for qualified businesses',
-    minAmount: 50000,
-    maxAmount: 2000000,
-    timeFrame: '3-7 business days',
-    requirements: ['24+ months in business', 'Min $50K monthly revenue', 'Credit score 700+'],
-    selected: false
-  }
-];
-
 export function LenderSelectionStep({ data, updateData, onNext, resubmissionData }: LenderSelectionStepProps) {
-  const [lenders, setLenders] = useState<Lender[]>(
-    data.selectedLenders.length > 0 ? data.selectedLenders : availableLenders
-  );
+  const { user } = useAuth();
+  const { lenders, loadingLenders, addLender, updateLender, deleteLender } = useSharedData();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingLender, setEditingLender] = useState<string | null>(null);
+  const [lenderForm, setLenderForm] = useState({
+    name: '',
+    logo: '',
+    description: '',
+    min_amount: '',
+    max_amount: '',
+    time_frame: '',
+    requirements: ['']
+  });
 
   const toggleLender = (lenderId: string) => {
     // Don't allow selection of previously submitted lenders
@@ -92,19 +36,143 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
       return;
     }
     
-    const updatedLenders = lenders.map(lender =>
-      lender.id === lenderId ? { ...lender, selected: !lender.selected } : lender
-    );
-    setLenders(updatedLenders);
-    updateData('selectedLenders', updatedLenders);
+    const updatedSelection = data.selectedLenders.includes(lenderId)
+      ? data.selectedLenders.filter(id => id !== lenderId)
+      : [...data.selectedLenders, lenderId];
+    
+    updateData('selectedLenders', updatedSelection);
   };
 
-  const selectedCount = lenders.filter(l => l.selected).length;
+  const selectedCount = data.selectedLenders.length;
   const isValid = selectedCount > 0;
 
   const isLenderSubmitted = (lenderId: string) => {
     return resubmissionData?.submittedLenders.includes(lenderId) || false;
   };
+
+  const handleAddLender = async () => {
+    try {
+      const requirements = lenderForm.requirements.filter(req => req.trim() !== '');
+      
+      await addLender({
+        name: lenderForm.name,
+        logo: lenderForm.logo || lenderForm.name.substring(0, 2).toUpperCase(),
+        description: lenderForm.description,
+        min_amount: parseInt(lenderForm.min_amount),
+        max_amount: parseInt(lenderForm.max_amount),
+        time_frame: lenderForm.time_frame,
+        requirements,
+        is_default: false,
+        created_by: user?.email || 'demo@company.com'
+      });
+
+      setShowAddForm(false);
+      setLenderForm({
+        name: '',
+        logo: '',
+        description: '',
+        min_amount: '',
+        max_amount: '',
+        time_frame: '',
+        requirements: ['']
+      });
+    } catch (error) {
+      console.error('Error adding lender:', error);
+      alert('Error adding lender. Please try again.');
+    }
+  };
+
+  const handleEditLender = (lender: Lender) => {
+    setEditingLender(lender.id);
+    setLenderForm({
+      name: lender.name,
+      logo: lender.logo,
+      description: lender.description,
+      min_amount: lender.min_amount.toString(),
+      max_amount: lender.max_amount.toString(),
+      time_frame: lender.time_frame,
+      requirements: [...lender.requirements, '']
+    });
+  };
+
+  const handleUpdateLender = async () => {
+    if (!editingLender) return;
+    
+    try {
+      const requirements = lenderForm.requirements.filter(req => req.trim() !== '');
+      
+      await updateLender(editingLender, {
+        name: lenderForm.name,
+        logo: lenderForm.logo || lenderForm.name.substring(0, 2).toUpperCase(),
+        description: lenderForm.description,
+        min_amount: parseInt(lenderForm.min_amount),
+        max_amount: parseInt(lenderForm.max_amount),
+        time_frame: lenderForm.time_frame,
+        requirements
+      });
+
+      setEditingLender(null);
+      setLenderForm({
+        name: '',
+        logo: '',
+        description: '',
+        min_amount: '',
+        max_amount: '',
+        time_frame: '',
+        requirements: ['']
+      });
+    } catch (error) {
+      console.error('Error updating lender:', error);
+      alert('Error updating lender. Please try again.');
+    }
+  };
+
+  const handleDeleteLender = async (lenderId: string) => {
+    if (!confirm('Are you sure you want to delete this lender?')) return;
+    
+    try {
+      await deleteLender(lenderId);
+    } catch (error) {
+      console.error('Error deleting lender:', error);
+      alert('Error deleting lender. Please try again.');
+    }
+  };
+
+  const addRequirement = () => {
+    setLenderForm({
+      ...lenderForm,
+      requirements: [...lenderForm.requirements, '']
+    });
+  };
+
+  const updateRequirement = (index: number, value: string) => {
+    const newRequirements = [...lenderForm.requirements];
+    newRequirements[index] = value;
+    setLenderForm({
+      ...lenderForm,
+      requirements: newRequirements
+    });
+  };
+
+  const removeRequirement = (index: number) => {
+    setLenderForm({
+      ...lenderForm,
+      requirements: lenderForm.requirements.filter((_, i) => i !== index)
+    });
+  };
+
+  const canEditLender = (lender: Lender) => {
+    return !lender.is_default || lender.created_by === user?.email || lender.created_by === 'demo@company.com';
+  };
+
+  if (loadingLenders) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="text-gray-600 mt-2">Loading lenders...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -127,10 +195,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
             <div>
               <h3 className="font-medium text-blue-900">Waterfall Mode</h3>
               <p className="text-sm text-blue-700 mt-1">
-                {resubmissionData 
-                  ? 'Select additional lenders to waterfall your application. Focus on lenders with different criteria or approval processes.'
-                  : 'Select 3-5 lenders for optimal results. Consider funding amounts, timeframes, and requirements that match your business profile.'
-                }
+                Select additional lenders to waterfall your application. Focus on lenders with different criteria or approval processes.
               </p>
             </div>
           </div>
@@ -138,94 +203,264 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
       )}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <Building2 className="h-5 w-5 text-blue-600 mr-2" />
-          <div>
-            <h3 className="font-medium text-blue-900">Lender Selection Tips</h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Select 3-5 lenders for optimal results. Consider funding amounts, timeframes, and requirements that match your business profile.
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Building2 className="h-5 w-5 text-blue-600 mr-2" />
+            <div>
+              <h3 className="font-medium text-blue-900">Lender Selection Tips</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Select 3-5 lenders for optimal results. Consider funding amounts, timeframes, and requirements that match your business profile.
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Lender</span>
+          </button>
         </div>
       </div>
+
+      {/* Add/Edit Lender Form */}
+      {(showAddForm || editingLender) && (
+        <div className="bg-white border-2 border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            {editingLender ? 'Edit Lender' : 'Add New Lender'}
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lender Name</label>
+              <input
+                type="text"
+                value={lenderForm.name}
+                onChange={(e) => setLenderForm({ ...lenderForm, name: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter lender name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Logo/Initials</label>
+              <input
+                type="text"
+                value={lenderForm.logo}
+                onChange={(e) => setLenderForm({ ...lenderForm, logo: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., ABC (auto-generated if empty)"
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={lenderForm.description}
+                onChange={(e) => setLenderForm({ ...lenderForm, description: e.target.value })}
+                rows={2}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Brief description of the lender"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Amount</label>
+              <input
+                type="number"
+                value={lenderForm.min_amount}
+                onChange={(e) => setLenderForm({ ...lenderForm, min_amount: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., 10000"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Maximum Amount</label>
+              <input
+                type="number"
+                value={lenderForm.max_amount}
+                onChange={(e) => setLenderForm({ ...lenderForm, max_amount: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., 500000"
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Decision Timeframe</label>
+              <input
+                type="text"
+                value={lenderForm.time_frame}
+                onChange={(e) => setLenderForm({ ...lenderForm, time_frame: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., 24-48 hours"
+              />
+            </div>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Requirements</label>
+            {lenderForm.requirements.map((req, index) => (
+              <div key={index} className="flex items-center space-x-2 mb-2">
+                <input
+                  type="text"
+                  value={req}
+                  onChange={(e) => updateRequirement(index, e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter requirement"
+                />
+                {lenderForm.requirements.length > 1 && (
+                  <button
+                    onClick={() => removeRequirement(index)}
+                    className="text-red-600 hover:text-red-800 p-1"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={addRequirement}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center space-x-1"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Requirement</span>
+            </button>
+          </div>
+          
+          <div className="flex justify-end space-x-3">
+            <button
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingLender(null);
+                setLenderForm({
+                  name: '',
+                  logo: '',
+                  description: '',
+                  min_amount: '',
+                  max_amount: '',
+                  time_frame: '',
+                  requirements: ['']
+                });
+              }}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={editingLender ? handleUpdateLender : handleAddLender}
+              disabled={!lenderForm.name || !lenderForm.description || !lenderForm.min_amount || !lenderForm.max_amount || !lenderForm.time_frame}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {editingLender ? 'Update Lender' : 'Add Lender'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {lenders.map((lender) => {
           const isSubmitted = isLenderSubmitted(lender.id);
+          const isSelected = data.selectedLenders.includes(lender.id);
           
           return (
-          <div
-            key={lender.id}
-            className={`border-2 rounded-lg p-6 transition-all ${
-              isSubmitted
-                ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
-                : lender.selected
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
-            }`}
-            onClick={() => !isSubmitted && toggleLender(lender.id)}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center">
-                <div className={`w-12 h-12 bg-gradient-to-br ${
-                  isSubmitted ? 'from-gray-400 to-gray-600' : 'from-blue-600 to-blue-800'
-                } rounded-lg flex items-center justify-center mr-3`}>
-                  <span className="text-white font-bold text-sm">{lender.logo}</span>
+            <div
+              key={lender.id}
+              className={`border-2 rounded-lg p-6 transition-all ${
+                isSubmitted
+                  ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                  : isSelected
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
+              }`}
+              onClick={() => !isSubmitted && toggleLender(lender.id)}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center flex-1">
+                  <div className={`w-12 h-12 bg-gradient-to-br ${
+                    isSubmitted ? 'from-gray-400 to-gray-600' : 'from-blue-600 to-blue-800'
+                  } rounded-lg flex items-center justify-center mr-3`}>
+                    <span className="text-white font-bold text-sm">{lender.logo}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className={`font-semibold ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
+                        {lender.name}
+                        {isSubmitted && <span className="ml-2 text-xs text-orange-600 font-medium">(Already Submitted)</span>}
+                        {!lender.is_default && <span className="ml-2 text-xs text-blue-600 font-medium">(Custom)</span>}
+                      </h3>
+                      {canEditLender(lender) && !isSubmitted && (
+                        <div className="flex items-center space-x-1 ml-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditLender(lender);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-1"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteLender(lender.id);
+                            }}
+                            className="text-red-600 hover:text-red-800 p-1"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p className={`text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {lender.description}
+                    </p>
+                  </div>
+                </div>
+                {isSubmitted ? (
+                  <X className="h-6 w-6 text-gray-400 flex-shrink-0 ml-2" />
+                ) : isSelected ? (
+                  <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0 ml-2" />
+                ) : (
+                  <Circle className="h-6 w-6 text-gray-400 flex-shrink-0 ml-2" />
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div className={`flex items-center text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Funding Range
+                  </div>
+                  <p className={`font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
+                    ${lender.min_amount.toLocaleString()} - ${lender.max_amount.toLocaleString()}
+                  </p>
                 </div>
                 <div>
-                  <h3 className={`font-semibold ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
-                    {lender.name}
-                    {isSubmitted && <span className="ml-2 text-xs text-orange-600 font-medium">(Already Submitted)</span>}
-                  </h3>
-                  <p className={`text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {lender.description}
+                  <div className={`flex items-center text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
+                    <Clock className="h-4 w-4 mr-1" />
+                    Decision Time
+                  </div>
+                  <p className={`font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
+                    {lender.time_frame}
                   </p>
                 </div>
               </div>
-              {isSubmitted ? (
-                <X className="h-6 w-6 text-gray-400 flex-shrink-0" />
-              ) : lender.selected ? (
-                <CheckCircle className="h-6 w-6 text-blue-600 flex-shrink-0" />
-              ) : (
-                <Circle className="h-6 w-6 text-gray-400 flex-shrink-0" />
-              )}
-            </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <div className={`flex items-center text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  Funding Range
-                </div>
-                <p className={`font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
-                  ${lender.minAmount.toLocaleString()} - ${lender.maxAmount.toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <div className={`flex items-center text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} mb-1`}>
-                  <Clock className="h-4 w-4 mr-1" />
-                  Decision Time
-                </div>
-                <p className={`font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-900'}`}>
-                  {lender.timeFrame}
-                </p>
+                <h4 className={`text-sm font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-700'} mb-2`}>
+                  Requirements:
+                </h4>
+                <ul className={`text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} space-y-1`}>
+                  {lender.requirements.map((req, index) => (
+                    <li key={index} className="flex items-center">
+                      <span className={`w-1.5 h-1.5 ${isSubmitted ? 'bg-gray-300' : 'bg-gray-400'} rounded-full mr-2`}></span>
+                      {req}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-
-            <div>
-              <h4 className={`text-sm font-medium ${isSubmitted ? 'text-gray-500' : 'text-gray-700'} mb-2`}>
-                Requirements:
-              </h4>
-              <ul className={`text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'} space-y-1`}>
-                {lender.requirements.map((req, index) => (
-                  <li key={index} className="flex items-center">
-                    <span className={`w-1.5 h-1.5 ${isSubmitted ? 'bg-gray-300' : 'bg-gray-400'} rounded-full mr-2`}></span>
-                    {req}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
           );
         })}
       </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, FileText, DollarSign, Building2, Users } from 'lucide-react';
 import { ApplicationData } from '../ApplicationForm';
+import { useSharedData } from '../../contexts/SharedDataContext';
 
 interface ReviewStepProps {
   data: ApplicationData;
@@ -12,7 +13,10 @@ interface ReviewStepProps {
 }
 
 export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps) {
+  const { lenders } = useSharedData();
   const { selectedLenders, documents } = data;
+  
+  const selectedLenderObjects = lenders.filter(l => selectedLenders.includes(l.id));
 
   return (
     <div className="space-y-6">
@@ -38,7 +42,7 @@ export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps
             </h3>
           </div>
           <div className="space-y-3">
-            {selectedLenders.filter(l => l.selected).map((lender) => (
+            {selectedLenderObjects.map((lender) => (
               <div key={lender.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
                 <div className="flex items-center">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center mr-3">
@@ -46,13 +50,13 @@ export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{lender.name}</p>
-                    <p className="text-xs text-gray-600">{lender.timeFrame}</p>
+                    <p className="text-xs text-gray-600">{lender.time_frame}</p>
                   </div>
                 </div>
                 <CheckCircle className="h-5 w-5 text-green-500" />
               </div>
             ))}
-            {selectedLenders.filter(l => l.selected).length === 0 && (
+            {selectedLenderObjects.length === 0 && (
               <p className="text-gray-500 italic">No lenders selected</p>
             )}
           </div>
@@ -127,7 +131,7 @@ export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps
               </p>
             )}
             <p className="text-sm text-gray-700">
-              Your application will be {resubmissionData ? 'waterfalled' : 'submitted'} to <strong>{selectedLenders.filter(l => l.selected).length}</strong> {resubmissionData ? 'additional' : 'selected'} lenders.
+              Your application will be {resubmissionData ? 'waterfalled' : 'submitted'} to <strong>{selectedLenderObjects.length}</strong> {resubmissionData ? 'additional' : 'selected'} lenders.
             </p>
             <p className="text-sm text-gray-700">
               Each lender will receive your funding application PDF and bank statements for review.

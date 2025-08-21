@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Application, LenderSubmission, Client } from '../lib/supabase';
+import type { Application, LenderSubmission, Client, Lender } from '../lib/supabase';
 
 interface ApplicationWithDetails extends Application {
   clientName: string;
@@ -26,9 +26,14 @@ interface ApplicationWithDetails extends Application {
 
 interface SharedDataContextType {
   applications: ApplicationWithDetails[];
+  lenders: Lender[];
   loading: boolean;
+  loadingLenders: boolean;
   updateLenderStatus: (applicationId: string, lenderId: string, status: string, approvalAmount?: number, lenderEmail?: string, lenderPhone?: string, notes?: string) => Promise<void>;
   addApplication: (application: Omit<Application, 'id' | 'created_at'>, lenderIds: string[], lenderNames: string[]) => Promise<string>;
+  addLender: (lender: Omit<Lender, 'id' | 'created_at'>) => Promise<void>;
+  updateLender: (id: string, updates: Partial<Lender>) => Promise<void>;
+  deleteLender: (id: string) => Promise<void>;
   getApplicationsForClient: (clientEmail: string) => ApplicationWithDetails[];
   refreshData: () => Promise<void>;
 }
@@ -37,10 +42,13 @@ const SharedDataContext = createContext<SharedDataContextType | undefined>(undef
 
 export function SharedDataProvider({ children }: { children: React.ReactNode }) {
   const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
+  const [lenders, setLenders] = useState<Lender[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLenders, setLoadingLenders] = useState(true);
 
   useEffect(() => {
     loadApplications();
+    loadLenders();
   }, []);
 
   const loadApplications = async () => {
@@ -92,6 +100,29 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       console.error('Error loading applications:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLenders = async () => {
+    try {
+      setLoadingLenders(true);
+      
+      const { data: lendersData, error } = await supabase
+        .from('lenders')
+        .select('*')
+        .order('is_default', { ascending: false })
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching lenders:', error);
+        return;
+      }
+
+      setLenders(lendersData || []);
+    } catch (error) {
+      console.error('Error loading lenders:', error);
+    } finally {
+      setLoadingLenders(false);
     }
   };
 
@@ -224,20 +255,88 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  const addLender = async (lenderData: Omit<Lender, 'id' | 'created_at'>) => {
+    try {
+      // Generate lender ID from name
+      const lenderId = lenderData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+      
+      const { error } = await supabase
+        .from('lenders')
+        .insert({
+          id: lenderId,
+          ...lenderData
+        });
+
+      if (error) {
+        console.error('Error creating lender:', error);
+        throw error;
+      }
+
+      await loadLenders();
+    } catch (error) {
+      console.error('Error adding lender:', error);
+      throw error;
+    }
+  };
+
+  const updateLender = async (id: string, updates: Partial<Lender>) => {
+    try {
+      const { error } = await supabase
+        .from('lenders')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error updating lender:', error);
+        throw error;
+      }
+
+      await loadLenders();
+    } catch (error) {
+      console.error('Error updating lender:', error);
+      throw error;
+    }
+  };
+
+  const deleteLender = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('lenders')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting lender:', error);
+        throw error;
+      }
+
+      await loadLenders();
+    } catch (error) {
+      console.error('Error deleting lender:', error);
+      throw error;
+    }
+  };
+
   const getApplicationsForClient = (clientEmail: string) => {
     return applications.filter(app => app.clientEmail === clientEmail);
   };
 
   const refreshData = async () => {
     await loadApplications();
+    await loadLenders();
   };
 
   return (
     <SharedDataContext.Provider value={{ 
       applications, 
+      lenders,
       loading,
+      loadingLenders,
       updateLenderStatus, 
       addApplication,
+      addLender,
+      updateLender,
+      deleteLender,
       getApplicationsForClient,
       refreshData
     }}>
