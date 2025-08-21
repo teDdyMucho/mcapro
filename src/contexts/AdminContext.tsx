@@ -41,7 +41,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           .from('admin_users')
           .select('*')
           .eq('email', session.user.email)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching admin:', error);
@@ -68,16 +68,37 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       // In production, you'd use proper Supabase auth
       if (email === 'admin@mcaportal.com' && password === 'admin123') {
         // Get admin user
-        const { data: admin, error } = await supabase
+        let { data: admin, error } = await supabase
           .from('admin_users')
           .select('*')
           .eq('email', email)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching admin:', error);
           setLoading(false);
           return false;
+        }
+
+        // If admin user doesn't exist, create it
+        if (!admin) {
+          const { data: newAdmin, error: insertError } = await supabase
+            .from('admin_users')
+            .insert({
+              email: email,
+              name: 'Demo Admin',
+              role: 'admin'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Error creating admin user:', insertError);
+            setLoading(false);
+            return false;
+          }
+
+          admin = newAdmin;
         }
 
         setAdminUser(admin);
