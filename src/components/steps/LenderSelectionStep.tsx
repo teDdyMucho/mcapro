@@ -24,6 +24,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
     name: '',
     logo: '',
     description: '',
+    email: '',
     min_amount: '',
     max_amount: '',
     time_frame: '',
@@ -58,6 +59,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
         name: lenderForm.name,
         logo: lenderForm.logo || lenderForm.name.substring(0, 2).toUpperCase(),
         description: lenderForm.description,
+        email: lenderForm.email,
         min_amount: parseInt(lenderForm.min_amount),
         max_amount: parseInt(lenderForm.max_amount),
         time_frame: lenderForm.time_frame,
@@ -71,6 +73,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
         name: '',
         logo: '',
         description: '',
+        email: '',
         min_amount: '',
         max_amount: '',
         time_frame: '',
@@ -88,6 +91,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
       name: lender.name,
       logo: lender.logo,
       description: lender.description,
+      email: lender.email,
       min_amount: lender.min_amount.toString(),
       max_amount: lender.max_amount.toString(),
       time_frame: lender.time_frame,
@@ -105,6 +109,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
         name: lenderForm.name,
         logo: lenderForm.logo || lenderForm.name.substring(0, 2).toUpperCase(),
         description: lenderForm.description,
+        email: lenderForm.email,
         min_amount: parseInt(lenderForm.min_amount),
         max_amount: parseInt(lenderForm.max_amount),
         time_frame: lenderForm.time_frame,
@@ -116,6 +121,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
         name: '',
         logo: '',
         description: '',
+        email: '',
         min_amount: '',
         max_amount: '',
         time_frame: '',
@@ -264,6 +270,17 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
               />
             </div>
             
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+              <input
+                type="email"
+                value={lenderForm.email}
+                onChange={(e) => setLenderForm({ ...lenderForm, email: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="contact@lender.com"
+              />
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Amount</label>
               <input
@@ -337,6 +354,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
                   name: '',
                   logo: '',
                   description: '',
+                  email: '',
                   min_amount: '',
                   max_amount: '',
                   time_frame: '',
@@ -349,7 +367,7 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
             </button>
             <button
               onClick={editingLender ? handleUpdateLender : handleAddLender}
-              disabled={!lenderForm.name || !lenderForm.description || !lenderForm.min_amount || !lenderForm.max_amount || !lenderForm.time_frame}
+              disabled={!lenderForm.name || !lenderForm.description || !lenderForm.email || !lenderForm.min_amount || !lenderForm.max_amount || !lenderForm.time_frame}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {editingLender ? 'Update Lender' : 'Add Lender'}
@@ -415,6 +433,11 @@ export function LenderSelectionStep({ data, updateData, onNext, resubmissionData
                     <p className={`text-sm ${isSubmitted ? 'text-gray-400' : 'text-gray-600'}`}>
                       {lender.description}
                     </p>
+                    {lender.email && (
+                      <p className={`text-xs ${isSubmitted ? 'text-gray-400' : 'text-gray-500'}`}>
+                        📧 {lender.email}
+                      </p>
+                    )}
                   </div>
                 </div>
                 {isSubmitted ? (

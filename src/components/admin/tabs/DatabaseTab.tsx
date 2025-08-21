@@ -277,7 +277,7 @@ export function DatabaseTab() {
                       Lender Name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Logo
+                      Contact
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Funding Range
@@ -306,8 +306,15 @@ export function DatabaseTab() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-xs">{lender.logo}</span>
+                        <div>
+                          <div className="flex items-center mb-1">
+                            <div className="w-6 h-6 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center mr-2">
+                              <span className="text-white font-bold text-xs">{lender.logo}</span>
+                            </div>
+                          </div>
+                          {lender.email && (
+                            <div className="text-xs text-gray-600">{lender.email}</div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
