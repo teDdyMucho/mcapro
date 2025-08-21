@@ -65,6 +65,7 @@ export interface Lender {
   name: string;
   logo: string;
   description: string;
+  email: string;
   min_amount: number;
   max_amount: number;
   time_frame: string;
