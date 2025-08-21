@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { RegisterForm } from './RegisterForm';
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<boolean>;
@@ -8,6 +9,7 @@ interface LoginFormProps {
 
 export function LoginForm({ onLogin }: LoginFormProps) {
   const { loading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +28,10 @@ export function LoginForm({ onLogin }: LoginFormProps) {
       setError('Invalid email or password');
     }
   };
+
+  if (showRegister) {
+    return <RegisterForm onBackToLogin={() => setShowRegister(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-teal-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -98,6 +104,16 @@ export function LoginForm({ onLogin }: LoginFormProps) {
               )}
             </button>
           </form>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setShowRegister(true)}
+              className="flex items-center justify-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Create New Account</span>
+            </button>
+          </div>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="font-medium text-blue-900 mb-2">Demo Access</h3>

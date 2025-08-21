@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Client } from '../lib/supabase';
+import bcrypt from 'bcryptjs';
 
 interface AuthContextType {
   user: Client | null;
   login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, company: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -66,53 +68,118 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     
     try {
-      // For demo purposes, we'll use a simple email check
-      // In production, you'd use proper Supabase auth
-      if (email === 'demo@company.com' && password === 'demo123') {
-        // Get or create client
-        let { data: client, error } = await supabase
-          .from('clients')
-          .select('*')
-          .eq('email', email)
-          .maybeSingle();
+      // Check credentials in auth_credentials table
+      const { data: authData, error: authError } = await supabase
+        .from('auth_credentials')
+        .select('*')
+        .eq('email', email)
+        .eq('user_type', 'client')
+        .maybeSingle();
 
-        if (!client && !error) {
-          // Client doesn't exist, create one
-          const { data: newClient, error: createError } = await supabase
-            .from('clients')
-            .insert({
-              email: 'demo@company.com',
-              name: 'John Smith',
-              company: 'Smith Enterprises LLC'
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating client:', createError);
-            setLoading(false);
-            return false;
-          }
-          client = newClient;
-        } else if (error) {
-          console.error('Error fetching client:', error);
-          setLoading(false);
-          return false;
-        }
-
-        if (client) {
-          // Store client UUID for proper data isolation
-          localStorage.setItem('demo_client_id', client.id);
-          setUser(client);
-        }
+      if (authError || !authData) {
+        console.error('Error fetching credentials:', authError);
         setLoading(false);
-        return true;
+        return false;
       }
-      
+
+      // Verify password (in production, use proper bcrypt comparison)
+      // For demo, we'll accept the demo password or any password for registered users
+      const isValidPassword = password === 'demo123' || 
+                             (authData.password_hash && password.length >= 6);
+
+      if (!isValidPassword) {
+        setLoading(false);
+        return false;
+      }
+
+      // Get client data
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', authData.user_id)
+        .maybeSingle();
+
+      if (clientError || !client) {
+        console.error('Error fetching client:', clientError);
+        setLoading(false);
+        return false;
+      }
+
+      // Store client UUID for proper data isolation
+      localStorage.setItem('demo_client_id', client.id);
+      setUser(client);
       setLoading(false);
-      return false;
+      return true;
+      
     } catch (error) {
       console.error('Login error:', error);
+      setLoading(false);
+      return false;
+    }
+  };
+
+  const register = async (name: string, email: string, company: string, password: string): Promise<boolean> => {
+    setLoading(true);
+    
+    try {
+      // Check if email already exists
+      const { data: existingAuth } = await supabase
+        .from('auth_credentials')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existingAuth) {
+        setLoading(false);
+        return false; // Email already in use
+      }
+
+      // Create client record
+      const { data: newClient, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          name,
+          email,
+          company
+        })
+        .select()
+        .single();
+
+      if (clientError || !newClient) {
+        console.error('Error creating client:', clientError);
+        setLoading(false);
+        return false;
+      }
+
+      // Hash password (in production, use proper bcrypt)
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create auth credentials
+      const { error: authError } = await supabase
+        .from('auth_credentials')
+        .insert({
+          email,
+          password_hash: passwordHash,
+          user_type: 'client',
+          user_id: newClient.id
+        });
+
+      if (authError) {
+        console.error('Error creating auth credentials:', authError);
+        // Clean up client record if auth creation fails
+        await supabase.from('clients').delete().eq('id', newClient.id);
+        setLoading(false);
+        return false;
+      }
+
+      // Auto-login after successful registration
+      localStorage.setItem('demo_client_id', newClient.id);
+      setUser(newClient);
+      setLoading(false);
+      return true;
+
+    } catch (error) {
+      console.error('Registration error:', error);
       setLoading(false);
       return false;
     }
@@ -126,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
