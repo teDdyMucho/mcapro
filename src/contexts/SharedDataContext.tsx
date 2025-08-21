@@ -116,10 +116,9 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       if (error) {
         console.error('Error fetching lenders:', error);
         // If lenders table doesn't exist, use default lenders
-        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
           console.log('Lenders table not found, using default lenders');
           setLenders(getDefaultLenders());
-          return;
         }
         return;
       }
@@ -127,6 +126,8 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       setLenders(lendersData || []);
     } catch (error) {
       console.error('Error loading lenders:', error);
+      // Fallback to default lenders on any error
+      setLenders(getDefaultLenders());
     } finally {
       setLoadingLenders(false);
     }
