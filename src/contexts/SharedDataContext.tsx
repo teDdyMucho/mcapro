@@ -107,23 +107,37 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
     try {
       setLoadingLenders(true);
       
-      const { data: lendersData, error } = await supabase
-        .from('lenders')
-        .select('*')
-        .order('is_default', { ascending: false })
-        .order('name');
+      try {
+        const { data: lendersData, error } = await supabase
+          .from('lenders')
+          .select('*')
+          .order('is_default', { ascending: false })
+          .order('name');
 
-      if (error) {
-        console.error('Error fetching lenders:', error);
+        if (error) {
+          console.error('Error fetching lenders:', error);
+          // If lenders table doesn't exist, use default lenders
+          if (error.code === 'PGRST205' || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
+            console.log('Lenders table not found, using default lenders');
+            setLenders(getDefaultLenders());
+            return;
+          }
+          throw error;
+        }
+
+        setLenders(lendersData || []);
+      } catch (dbError: any) {
+        console.error('Database error loading lenders:', dbError);
         // If lenders table doesn't exist, use default lenders
-        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
+        if (dbError.code === 'PGRST205' || dbError.message?.includes('Could not find the table') || dbError.message?.includes('schema cache')) {
           console.log('Lenders table not found, using default lenders');
           setLenders(getDefaultLenders());
+        } else {
+          // For other database errors, still provide fallback
+          console.log('Using default lenders due to database error');
+          setLenders(getDefaultLenders());
         }
-        return;
       }
-
-      setLenders(lendersData || []);
     } catch (error) {
       console.error('Error loading lenders:', error);
       // Fallback to default lenders on any error
