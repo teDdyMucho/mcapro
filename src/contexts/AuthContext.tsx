@@ -68,6 +68,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     
     try {
+      // Handle demo login first
+      if (email === 'demo@company.com' && password === 'demo123') {
+        // Get demo client data directly
+        const { data: client, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('email', 'demo@company.com')
+          .maybeSingle();
+
+        if (clientError || !client) {
+          console.error('Error fetching demo client:', clientError);
+          setLoading(false);
+          return false;
+        }
+
+        // Store client UUID for proper data isolation
+        localStorage.setItem('demo_client_id', client.id);
+        setUser(client);
+        setLoading(false);
+        return true;
+      }
+
       // Check credentials in auth_credentials table
       const { data: authData, error: authError } = await supabase
         .from('auth_credentials')
@@ -83,9 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Verify password (in production, use proper bcrypt comparison)
-      // For demo, we'll accept the demo password or any password for registered users
-      const isValidPassword = password === 'demo123' || 
-                             (authData.password_hash && password.length >= 6);
+      const isValidPassword = authData.password_hash && password.length >= 6;
 
       if (!isValidPassword) {
         setLoading(false);
