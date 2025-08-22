@@ -6,6 +6,7 @@ import { ReviewStep } from './steps/ReviewStep';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSharedData } from '../contexts/SharedDataContext';
+import { supabase } from '../lib/supabase';
 
 interface ApplicationFormProps {
   onComplete: () => void;
@@ -104,12 +105,59 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
         lenderIds,
         lenderNames
       ).then((applicationId) => {
+        // Send webhook notification for new application
+        sendClientWebhook(applicationId, selectedLenderObjects);
         alert(`Application ${applicationId} submitted successfully!`);
         onComplete();
       }).catch((error) => {
         console.error('Error submitting application:', error);
         alert('Error submitting application. Please try again.');
       });
+    }
+  };
+
+  const sendClientWebhook = async (applicationId: string, selectedLenders: any[]) => {
+    try {
+      const webhookData = {
+        applicationId,
+        clientId: user?.id,
+        clientName: user?.name,
+        clientEmail: user?.email,
+        company: user?.company,
+        requestedAmount: 50000, // Default amount - in real app this would come from form
+        selectedLenders: selectedLenders.map(lender => ({
+          id: lender.id,
+          name: lender.name,
+          email: lender.email,
+          minAmount: lender.min_amount,
+          maxAmount: lender.max_amount,
+          timeFrame: lender.time_frame
+        })),
+        documents: {
+          fundingApplication: applicationData.documents.fundingApplication?.name || null,
+          bankStatement1: applicationData.documents.bankStatement1?.name || null,
+          bankStatement2: applicationData.documents.bankStatement2?.name || null,
+          bankStatement3: applicationData.documents.bankStatement3?.name || null
+        },
+        submittedDate: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch('https://primary-production-c8d0.up.railway.app/webhook/client', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (!response.ok) {
+        console.error('Client webhook failed:', response.status, response.statusText);
+      } else {
+        console.log('Client webhook sent successfully');
+      }
+    } catch (error) {
+      console.error('Error sending client webhook:', error);
     }
   };
 
