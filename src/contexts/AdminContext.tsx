@@ -17,10 +17,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load admin user from localStorage on mount
   useEffect(() => {
-    // Check for existing session
-    checkAdminUser();
+    const savedAdminUser = localStorage.getItem('mca_admin_user');
+    if (savedAdminUser) {
+      try {
+        const parsedAdminUser = JSON.parse(savedAdminUser);
+        setAdminUser(parsedAdminUser);
+      } catch (error) {
+        console.error('Error parsing saved admin user:', error);
+        localStorage.removeItem('mca_admin_user');
+      }
+    }
+    setLoading(false);
+  }, []);
 
+  useEffect(() => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
@@ -81,6 +93,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         }
 
         setAdminUser(admin);
+        localStorage.setItem('mca_admin_user', JSON.stringify(admin));
         setLoading(false);
         return true;
       }
@@ -121,6 +134,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       }
 
       setAdminUser(admin);
+      localStorage.setItem('mca_admin_user', JSON.stringify(admin));
       setLoading(false);
       return true;
       
@@ -194,6 +208,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
       // Auto-login after successful registration
       setAdminUser(newAdmin);
+      localStorage.setItem('mca_admin_user', JSON.stringify(newAdmin));
       setLoading(false);
       return true;
 
@@ -205,6 +220,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    localStorage.removeItem('mca_admin_user');
     setAdminUser(null);
     supabase.auth.signOut();
   };

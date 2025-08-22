@@ -17,10 +17,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Load user from localStorage on mount
   useEffect(() => {
-    // Check for existing session
-    checkUser();
+    const savedUser = localStorage.getItem('mca_user');
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('mca_user');
+      }
+    }
+    setLoading(false);
+  }, []);
 
+  useEffect(() => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session) {
@@ -85,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Store client UUID for proper data isolation
         localStorage.setItem('demo_client_id', client.id);
+        localStorage.setItem('mca_user', JSON.stringify(client));
         setUser(client);
         setLoading(false);
         return true;
@@ -127,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Store client UUID for proper data isolation
       localStorage.setItem('demo_client_id', client.id);
+      localStorage.setItem('mca_user', JSON.stringify(client));
       setUser(client);
       setLoading(false);
       return true;
@@ -194,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Auto-login after successful registration
       localStorage.setItem('demo_client_id', newClient.id);
+      localStorage.setItem('mca_user', JSON.stringify(newClient));
       setUser(newClient);
       setLoading(false);
       return true;
@@ -208,6 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     // Clear stored client ID
     localStorage.removeItem('demo_client_id');
+    localStorage.removeItem('mca_user');
     setUser(null);
     supabase.auth.signOut();
   };
