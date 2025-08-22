@@ -304,8 +304,8 @@ export function ApprovalsView() {
                         </p>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           lender.status === 'funded' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                            : 'bg-green-100 text-green-800 border border-green-200'
                         }`}>
                           {lender.status.toUpperCase()}
                         </span>
