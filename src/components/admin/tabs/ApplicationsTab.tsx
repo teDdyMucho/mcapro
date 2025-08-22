@@ -93,7 +93,20 @@ export function ApplicationsTab() {
       const application = applications.find(app => app.id === editingLender.applicationId);
       const lender = application?.submittedLenders.find(l => l.id === editingLender.lenderId);
 
+      // Fetch the lender submission ID from database
+      const { data: submissionData, error } = await supabase
+        .from('lender_submissions')
+        .select('id')
+        .eq('application_id', editingLender.applicationId)
+        .eq('lender_id', editingLender.lenderId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching submission ID:', error);
+      }
+
       const webhookData = {
+        submissionId: submissionData?.id || null,
         applicationId: editingLender.applicationId,
         lenderId: editingLender.lenderId,
         lenderName: lender?.name || 'Unknown',
