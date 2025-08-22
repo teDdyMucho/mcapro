@@ -66,6 +66,25 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     
     try {
+      // Handle demo admin login
+      if (email === 'admin@mcaportal.com' && password === 'admin123') {
+        const { data: admin, error: adminError } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (adminError || !admin) {
+          console.error('Error fetching demo admin user:', adminError);
+          setLoading(false);
+          return false;
+        }
+
+        setAdminUser(admin);
+        setLoading(false);
+        return true;
+      }
+
       // Check credentials in auth_credentials table
       const { data: authData, error: authError } = await supabase
         .from('auth_credentials')
@@ -80,10 +99,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      // Verify password (in production, use proper bcrypt comparison)
-      // For demo, we'll accept the demo password or any password for registered users
-      const isValidPassword = password === 'admin123' || 
-                             (authData.password_hash && password.length >= 8);
+      // Verify password using bcrypt
+      const isValidPassword = await bcrypt.compare(password, authData.password_hash);
 
       if (!isValidPassword) {
         setLoading(false);
