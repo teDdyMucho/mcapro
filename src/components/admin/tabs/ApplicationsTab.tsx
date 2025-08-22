@@ -318,10 +318,11 @@ export function ApplicationsTab() {
                             <span className="text-sm font-medium text-gray-900">{lender.name}</span>
                             <div className="flex items-center space-x-2">
                               <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                lender.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                lender.status === 'declined' ? 'bg-red-100 text-red-800' :
-                                lender.status === 'funded' ? 'bg-blue-100 text-blue-800' :
-                                'bg-yellow-100 text-yellow-800'
+                                lender.status === 'under_review' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                lender.status === 'approved' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                lender.status === 'declined' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                lender.status === 'funded' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                'bg-gray-100 text-gray-800 border border-gray-200'
                               }`}>
                                 {lender.status.replace('_', ' ').toUpperCase()}
                               </span>
