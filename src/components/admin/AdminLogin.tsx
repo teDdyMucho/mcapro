@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Shield, Mail, Lock, AlertCircle, Loader2, UserPlus } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
 import { AdminRegister } from './AdminRegister';

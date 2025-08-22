@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { LenderSelectionStep } from './steps/LenderSelectionStep';
-import { FundingDetailsStep } from './steps/FundingDetailsStep';
+// FundingDetailsStep removed as it's not used
 import { DocumentUploadStep } from './steps/DocumentUploadStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useSharedData } from '../contexts/SharedDataContext';
+import { useSharedData } from '../contexts/useSharedData';
 import { supabase } from '../lib/supabase';
 
 interface ApplicationFormProps {
@@ -83,6 +83,8 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
           supabase.from('lender_submissions').insert(submission)
         )
       ]).then(() => {
+        // For resubmissions, also send PDFs to the webhook
+        sendPDFsToWebhook(resubmissionData.applicationId);
         const message = `Application ${resubmissionData.applicationId} resubmitted successfully to ${selectedLenderIds.length} new lenders!`;
         alert(message);
         onComplete();
@@ -116,7 +118,7 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
     }
   };
 
-  const sendClientWebhook = async (applicationId: string, selectedLenders: any[]) => {
+  const sendClientWebhook = async (applicationId: string, selectedLenders: { id: string; name: string; email?: string; min_amount: number; max_amount: number; time_frame: string }[]) => {
     try {
       const webhookData = {
         applicationId,
@@ -139,7 +141,7 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
           bankStatement2: applicationData.documents.bankStatement2?.name || null,
           bankStatement3: applicationData.documents.bankStatement3?.name || null
         },
-        submittedDate: new Date().toISOString(),
+        submitted_date: new Date().toISOString(),
         timestamp: new Date().toISOString()
       };
 
@@ -156,12 +158,62 @@ export function ApplicationForm({ onComplete, resubmissionData }: ApplicationFor
       } else {
         console.log('Client webhook sent successfully');
       }
+      
+      // Also send the PDF files to the new webhook
+      await sendPDFsToWebhook(applicationId);
     } catch (error) {
       console.error('Error sending client webhook:', error);
     }
   };
+  
+  const sendPDFsToWebhook = async (applicationId: string) => {
+    try {
+      // Create FormData to send files
+      const formData = new FormData();
+      
+      // Add application ID
+      formData.append('applicationId', applicationId);
+      
+      // Add client information
+      formData.append('clientId', user?.id || '');
+      formData.append('clientName', user?.name || '');
+      formData.append('clientEmail', user?.email || '');
+      formData.append('company', user?.company || '');
+      
+      // Add all available documents
+      if (applicationData.documents.fundingApplication) {
+        formData.append('fundingApplication', applicationData.documents.fundingApplication);
+      }
+      
+      if (applicationData.documents.bankStatement1) {
+        formData.append('bankStatement1', applicationData.documents.bankStatement1);
+      }
+      
+      if (applicationData.documents.bankStatement2) {
+        formData.append('bankStatement2', applicationData.documents.bankStatement2);
+      }
+      
+      if (applicationData.documents.bankStatement3) {
+        formData.append('bankStatement3', applicationData.documents.bankStatement3);
+      }
+      
+      // Send to the webhook
+      const response = await fetch('https://primary-production-c8d0.up.railway.app/webhook/addingNewLenders', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        console.error('PDF webhook failed:', response.status, response.statusText);
+      } else {
+        console.log('PDFs sent to webhook successfully');
+      }
+    } catch (error) {
+      console.error('Error sending PDFs to webhook:', error);
+    }
+  };
 
-  const updateApplicationData = (section: keyof ApplicationData, data: any) => {
+  const updateApplicationData = (section: keyof ApplicationData, data: string[] | Partial<ApplicationData['documents']>) => {
     setApplicationData(prev => ({
       ...prev,
       [section]: section === 'selectedLenders' ? data : { ...prev[section], ...data }

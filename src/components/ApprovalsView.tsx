@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { TrendingUp, DollarSign, Mail, Building2, Calendar, CheckCircle, Filter, Search, Phone, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useSharedData } from '../contexts/SharedDataContext';
+import { useSharedData } from '../contexts/useSharedData';
 
 export function ApprovalsView() {
   const { user } = useAuth();
@@ -13,23 +13,11 @@ export function ApprovalsView() {
   const applications = user ? getApplicationsForClient(user.email).map(app => ({
     ...app,
     businessName: app.company,
-    clientName: app.clientName
+    clientName: app.clientName,
+    submittedDate: app.submitted_date // Map the property name for consistency
   })) : [];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border border-green-200';
-      case 'funded':
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
-      case 'declined':
-        return 'bg-red-100 text-red-800 border border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border border-gray-200';
-    }
-  };
+  // Status color utility function is now applied directly in the JSX where needed
 
   // Get all approved lender submissions
   const approvedSubmissions = applications.flatMap(app =>
@@ -44,40 +32,7 @@ export function ApprovalsView() {
       }))
   );
 
-  const approvalsByLender = approvedSubmissions.reduce((acc, submission) => {
-    const lenderName = submission.name;
-    if (!acc[lenderName]) {
-      acc[lenderName] = [];
-    }
-    acc[lenderName].push(submission);
-    return acc;
-  }, {} as Record<string, typeof approvedSubmissions>);
-
-  // Filter and sort approved submissions
-  const filteredSubmissions = approvedSubmissions
-    .filter(submission =>
-      submission.applicationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      submission.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'amount':
-          return (b.approvalAmount || 0) - (a.approvalAmount || 0);
-        case 'lender':
-          return a.name.localeCompare(b.name);
-        case 'date':
-        default:
-          return new Date(b.updatedDate || b.submittedDate).getTime() - new Date(a.updatedDate || a.submittedDate).getTime();
-      }
-    });
-
-  // Filter lender groups based on search
-  const filteredLenderGroups = Object.entries(approvalsByLender)
-    .filter(([lenderName, submissions]) => 
-      lenderName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      submissions.some(sub => sub.applicationId.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    .sort(([a], [b]) => a.localeCompare(b));
+  // We're using filteredApplications for UI display, so we don't need to group by lender
 
   const totalApprovedAmount = approvedSubmissions.reduce((sum, submission) => 
     sum + (submission.approvalAmount || 0), 0
@@ -105,22 +60,23 @@ export function ApprovalsView() {
     .filter(app =>
       app.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      app.businessName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.approvedLenders.some(lender => 
         lender.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
     )
     .sort((a, b) => {
       switch (sortBy) {
-        case 'amount':
+        case 'amount': {
           const aTotal = a.approvedLenders.reduce((sum, l) => sum + (l.approvalAmount || 0), 0);
           const bTotal = b.approvedLenders.reduce((sum, l) => sum + (l.approvalAmount || 0), 0);
           return bTotal - aTotal;
+        }
         case 'lender':
           return a.approvedLenders[0]?.name.localeCompare(b.approvedLenders[0]?.name) || 0;
         case 'date':
         default:
-          return new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime();
+          return new Date(b.submitted_date).getTime() - new Date(a.submitted_date).getTime();
       }
     });
 
@@ -224,7 +180,7 @@ export function ApprovalsView() {
             <Filter className="h-5 w-5 text-gray-400" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'amount' | 'lender')}
               className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
             >
               <option value="date">Sort by Date</option>
@@ -253,7 +209,7 @@ export function ApprovalsView() {
                     </div>
                     <div>
                       <h3 className="text-2xl font-bold">{app.id}</h3>
-                      <p className="text-green-100 text-lg">{app.clientName} - {app.company}</p>
+                      <p className="text-green-100 text-lg">{app.clientName} - {app.businessName}</p>
                       <p className="text-green-200">
                         {app.approvedLenders.length} approval{app.approvedLenders.length !== 1 ? 's' : ''} • 
                         Requested: ${app.amount.toLocaleString()}
@@ -274,7 +230,7 @@ export function ApprovalsView() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm font-medium text-green-900">Submitted Date</p>
-                    <p className="text-green-700">{new Date(app.submittedDate).toLocaleDateString()}</p>
+                    <p className="text-green-700">{new Date(app.submittedDate || app.submitted_date).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-green-900">Requested Amount</p>
@@ -292,7 +248,7 @@ export function ApprovalsView() {
               {/* Approved Lenders */}
               <div className="divide-y divide-gray-200">
                 {app.approvedLenders
-                  .sort((a, b) => new Date(b.updatedDate || app.submittedDate).getTime() - new Date(a.updatedDate || app.submittedDate).getTime())
+                  .sort((a, b) => new Date(b.updatedDate || app.submittedDate || app.submitted_date).getTime() - new Date(a.updatedDate || app.submittedDate || app.submitted_date).getTime())
                   .map((lender, index) => (
                   <div key={`${app.id}-${lender.id}-${index}`} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between mb-4">
@@ -384,7 +340,7 @@ export function ApprovalsView() {
                           <Calendar className="h-4 w-4 mr-1" />
                           Application Submitted
                         </div>
-                        <p className="font-medium text-gray-900">{new Date(app.submittedDate).toLocaleDateString()}</p>
+                        <p className="font-medium text-gray-900">{new Date(app.submittedDate || app.submitted_date).toLocaleDateString()}</p>
                       </div>
                     </div>
 

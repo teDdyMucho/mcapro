@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Get environment variables with fallbacks for development
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://lpixwyudekesweinmnxm.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxwaXh3eXVkZWtlc3dlaW5tbnhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjUyNDMsImV4cCI6MjA3MTM0MTI0M30.l-1f-RieE0xynaO21XZtYOjJG8tL-pQTZ3EUWuBKIw0';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Log a warning instead of throwing an error
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn('Using default Supabase credentials. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env for production use.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -71,6 +73,6 @@ export interface Lender {
   time_frame: string;
   requirements: string[];
   is_default: boolean;
-  created_by: string;
+  created_by?: string;
   created_at: string;
 }

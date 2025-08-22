@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Shield, Users, FileText, TrendingUp, LogOut } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
-import { useSharedData } from '../../contexts/SharedDataContext';
+import { useSharedData } from '../../contexts/useSharedData';
 import { ApplicationsTab } from './tabs/ApplicationsTab';
 import { ClientsTab } from './tabs/ClientsTab';
 import { DatabaseTab } from './tabs/DatabaseTab';
@@ -9,7 +9,7 @@ import { DatabaseTab } from './tabs/DatabaseTab';
 export function AdminDashboard() {
   const { adminUser, logout } = useAdmin();
   const { applications, loading } = useSharedData();
-  const [activeTab, setActiveTab] = useState<'applications' | 'approvals' | 'database'>('applications');
+  const [activeTab, setActiveTab] = useState<'applications' | 'clients' | 'database'>('applications');
 
   const stats = {
     totalApplications: applications.length,
@@ -110,7 +110,7 @@ export function AdminDashboard() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as 'applications' | 'clients' | 'database')}
                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center space-x-2 ${
                       activeTab === tab.id
                         ? 'border-slate-500 text-slate-600'

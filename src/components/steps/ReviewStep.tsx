@@ -1,18 +1,18 @@
-import React from 'react';
-import { CheckCircle, FileText, DollarSign, Building2, Users } from 'lucide-react';
+import { CheckCircle, FileText, Building2, Users } from 'lucide-react';
 import { ApplicationData } from '../ApplicationForm';
-import { useSharedData } from '../../contexts/SharedDataContext';
+import { useSharedData } from '../../contexts/useSharedData';
 
 interface ReviewStepProps {
   data: ApplicationData;
   onSubmit: () => void;
+  isLastStep: boolean;
   resubmissionData?: {
     applicationId: string;
     submittedLenders: string[];
   } | null;
 }
 
-export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps) {
+export function ReviewStep({ data, onSubmit, isLastStep, resubmissionData }: ReviewStepProps) {
   const { lenders } = useSharedData();
   const { selectedLenders, documents } = data;
   
@@ -176,6 +176,7 @@ export function ReviewStep({ data, onSubmit, resubmissionData }: ReviewStepProps
         <button
           onClick={onSubmit}
           className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors text-lg font-semibold"
+          disabled={!isLastStep}
         >
           {resubmissionData ? 'Waterfall to Additional Lenders' : 'Submit to Selected Lenders'}
         </button>

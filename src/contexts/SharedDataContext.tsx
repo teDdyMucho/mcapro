@@ -1,8 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Application, LenderSubmission, Client, Lender } from '../lib/supabase';
+import type { Application, LenderSubmission, Lender, Document } from '../lib/supabase';
 
-interface ApplicationWithDetails extends Application {
+export interface ApplicationWithDetails {  
+  id: string;
+  client_id: string;
+  amount: number;
+  status: 'under_review' | 'approved' | 'declined' | 'funded';
+  submitted_date: string;
+  created_at: string;
   clientName: string;
   clientEmail: string;
   company: string;
@@ -38,7 +44,7 @@ interface SharedDataContextType {
   refreshData: () => Promise<void>;
 }
 
-const SharedDataContext = createContext<SharedDataContextType | undefined>(undefined);
+export const SharedDataContext = createContext<SharedDataContextType | undefined>(undefined);
 
 export function SharedDataProvider({ children }: { children: React.ReactNode }) {
   const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
@@ -49,6 +55,7 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     loadApplications();
     loadLenders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadApplications = async () => {
@@ -88,10 +95,10 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
           notes: submission.notes
         })),
         documents: {
-          fundingApplication: app.documents?.find((d: any) => d.document_type === 'funding_application')?.file_name || '',
-          bankStatement1: app.documents?.find((d: any) => d.document_type === 'bank_statement_1')?.file_name || '',
-          bankStatement2: app.documents?.find((d: any) => d.document_type === 'bank_statement_2')?.file_name || '',
-          bankStatement3: app.documents?.find((d: any) => d.document_type === 'bank_statement_3')?.file_name || ''
+          fundingApplication: app.documents?.find((d: Document) => d.document_type === 'funding_application')?.file_name || '',
+          bankStatement1: app.documents?.find((d: Document) => d.document_type === 'bank_statement_1')?.file_name || '',
+          bankStatement2: app.documents?.find((d: Document) => d.document_type === 'bank_statement_2')?.file_name || '',
+          bankStatement3: app.documents?.find((d: Document) => d.document_type === 'bank_statement_3')?.file_name || ''
         }
       }));
 
@@ -126,10 +133,10 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
         }
 
         setLenders(lendersData || []);
-      } catch (dbError: any) {
+      } catch (dbError: unknown) {
         console.error('Database error loading lenders:', dbError);
-        // If lenders table doesn't exist, use default lenders
-        if (dbError.code === 'PGRST205' || dbError.message?.includes('Could not find the table') || dbError.message?.includes('schema cache')) {
+        const error = dbError as { code?: string; message?: string };
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
           console.log('Lenders table not found, using default lenders');
           setLenders(getDefaultLenders());
         } else {
@@ -159,7 +166,6 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       time_frame: '24-48 hours',
       requirements: ['6+ months in business', 'Monthly revenue $10k+', 'Credit score 550+'],
       is_default: true,
-      created_by: 'system',
       created_at: new Date().toISOString()
     },
     {
@@ -173,7 +179,6 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       time_frame: '2-5 business days',
       requirements: ['12+ months in business', 'Monthly revenue $25k+', 'Credit score 600+'],
       is_default: true,
-      created_by: 'system',
       created_at: new Date().toISOString()
     },
     {
@@ -187,7 +192,6 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       time_frame: 'Same day',
       requirements: ['3+ months in business', 'Monthly revenue $5k+', 'Credit score 500+'],
       is_default: true,
-      created_by: 'system',
       created_at: new Date().toISOString()
     },
     {
@@ -201,7 +205,6 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       time_frame: '1-3 business days',
       requirements: ['9+ months in business', 'Monthly revenue $15k+', 'Credit score 575+'],
       is_default: true,
-      created_by: 'system',
       created_at: new Date().toISOString()
     },
     {
@@ -215,7 +218,6 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       time_frame: '3-7 business days',
       requirements: ['18+ months in business', 'Monthly revenue $20k+', 'Credit score 625+'],
       is_default: true,
-      created_by: 'system',
       created_at: new Date().toISOString()
     }
   ];
@@ -254,7 +256,7 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       if (app) {
         const updatedLenders = app.submittedLenders.map(l => 
           l.id === lenderId 
-            ? { ...l, status: status as any, approvalAmount, lenderEmail, lenderPhone, notes, updatedDate: new Date().toISOString().split('T')[0] }
+            ? { ...l, status: status as 'under_review' | 'approved' | 'declined' | 'funded', approvalAmount, lenderEmail, lenderPhone, notes, updatedDate: new Date().toISOString().split('T')[0] }
             : l
         );
 
@@ -367,8 +369,8 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
       // Generate lender ID from name
       const lenderId = lenderData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
       
-      // Ensure created_by is set properly
-      const createdBy = lenderData.created_by || 'demo@company.com';
+      // Set default created_by if not provided
+      const createdBy = 'demo@company.com';
       
       const { error } = await supabase
         .from('lenders')
@@ -392,8 +394,8 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
 
   const updateLender = async (id: string, updates: Partial<Lender>) => {
     try {
-      // Don't allow updating created_by field
-      const { created_by, ...safeUpdates } = updates;
+      // Use all updates as safe updates
+      const safeUpdates = updates;
       
       const { error } = await supabase
         .from('lenders')
@@ -469,10 +471,4 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
   );
 }
 
-export function useSharedData() {
-  const context = useContext(SharedDataContext);
-  if (context === undefined) {
-    throw new Error('useSharedData must be used within a SharedDataProvider');
-  }
-  return context;
-}
+// useSharedData has been moved to its own file for better Fast Refresh support

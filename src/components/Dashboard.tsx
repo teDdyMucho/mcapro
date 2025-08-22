@@ -1,7 +1,8 @@
-import React from 'react';
+import { useState } from 'react';
 import { Plus, FileText, Clock, CheckCircle, AlertTriangle, DollarSign, Calendar, Building2, Filter } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useSharedData } from '../contexts/SharedDataContext';
+import { useSharedData } from '../contexts/useSharedData';
+import type { ApplicationWithDetails } from '../contexts/SharedDataContext';
 
 interface DashboardProps {
   onStartApplication: () => void;
@@ -11,12 +12,13 @@ interface DashboardProps {
 export function Dashboard({ onStartApplication, onResubmitApplication }: DashboardProps) {
   const { user } = useAuth();
   const { getApplicationsForClient, loading } = useSharedData();
-  const [statusFilter, setStatusFilter] = React.useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Get applications for the current user
   const applications = user ? getApplicationsForClient(user.email).map(app => ({
     ...app,
-    businessName: app.company
+    businessName: app.company,
+    submittedDate: app.submitted_date // Map the property name for consistency
   })) : [];
 
   const getStatusIcon = (status: string) => {
@@ -62,15 +64,10 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
     }
   };
 
-  const canResubmit = (app: any) => {
-    // Allow resubmission if there are any declined/expired lenders or if user wants to waterfall
-    return app.submittedLenders.some((lender: any) => 
-      lender.status === 'declined' || lender.status === 'expired'
-    ) || app.status !== 'funded';
-  };
+  // We're using handleResubmit directly for all applications
 
-  const handleResubmit = (app: any) => {
-    const submittedLenderIds = app.submittedLenders.map((l: any) => l.id);
+  const handleResubmit = (app: ApplicationWithDetails) => {
+    const submittedLenderIds = app.submittedLenders.map(l => l.id);
     onResubmitApplication(app.id, submittedLenderIds);
   };
 
@@ -198,7 +195,7 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
                   <div className="mt-4 border-t pt-3">
                     <h4 className="text-sm font-medium text-gray-700 mb-2">Submitted to:</h4>
                     <div className="flex flex-wrap gap-2">
-                      {app.submittedLenders.map((lender: any) => (
+                      {app.submittedLenders.map((lender) => (
                         <div
                           key={lender.id}
                           className="flex items-center space-x-1 bg-gray-50 px-2 py-1 rounded-md text-xs"
@@ -221,7 +218,7 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
                   
                   <div className="mt-3 flex items-center text-sm text-gray-500">
                     <Calendar className="h-4 w-4 mr-1" />
-                    Submitted: {new Date(app.submittedDate).toLocaleDateString()}
+                    Submitted: {new Date(app.submittedDate || app.submitted_date).toLocaleDateString()}
                   </div>
                 </div>
               ))}

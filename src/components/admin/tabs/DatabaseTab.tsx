@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Database, Download, Upload, Trash2, Search, Plus } from 'lucide-react';
-import { useSharedData } from '../../../contexts/SharedDataContext';
+import { useState } from 'react';
+import { Database, Download, Upload, Trash2, Search } from 'lucide-react';
+import { useSharedData } from '../../../contexts/useSharedData';
 
 export function DatabaseTab() {
   const { applications, lenders, loading, loadingLenders } = useSharedData();
@@ -30,23 +30,8 @@ export function DatabaseTab() {
   const filteredLenders = lenders.filter(lender =>
     lender.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lender.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lender.created_by.toLowerCase().includes(searchTerm.toLowerCase())
+    (lender.created_by?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
-
-  const getApplicationStatusColor = (status: string) => {
-    switch (status) {
-      case 'under_review':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'approved':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'funded':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'declined':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -280,7 +265,7 @@ export function DatabaseTab() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(app.submittedDate).toLocaleDateString()}
+                        {new Date(app.submitted_date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {app.submittedLenders.length} lenders

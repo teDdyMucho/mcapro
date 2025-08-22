@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Building2, DollarSign, Clock, CheckCircle, Circle, X, Plus, Edit, Trash2 } from 'lucide-react';
 import { ApplicationData } from '../ApplicationForm';
-import { useSharedData } from '../../contexts/SharedDataContext';
+import { useSharedData } from '../../contexts/useSharedData';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Lender } from '../../lib/supabase';
 
 interface LenderSelectionStepProps {
   data: ApplicationData;
-  updateData: (section: keyof ApplicationData, data: any) => void;
+  updateData: (section: keyof ApplicationData, data: string[] | Partial<ApplicationData['documents']>) => void;
   onNext: () => void;
   resubmissionData?: {
     applicationId: string;

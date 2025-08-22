@@ -1,10 +1,10 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { Upload, FileText, CheckCircle, X } from 'lucide-react';
 import { ApplicationData } from '../ApplicationForm';
 
 interface DocumentUploadStepProps {
   data: ApplicationData;
-  updateData: (section: keyof ApplicationData, data: any) => void;
+  updateData: (section: keyof ApplicationData, data: { fundingApplication?: File | null; bankStatement1?: File | null; bankStatement2?: File | null; bankStatement3?: File | null; } | string[]) => void;
   onNext: () => void;
 }
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Lock, Mail, AlertCircle, Loader2, UserPlus } from 'lucide-react';
+import { useState, FormEvent } from 'react';
+import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { RegisterForm } from './RegisterForm';
 
@@ -14,7 +14,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
