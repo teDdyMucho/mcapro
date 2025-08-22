@@ -3,7 +3,7 @@ import { Shield, Users, FileText, TrendingUp, LogOut } from 'lucide-react';
 import { useAdmin } from '../../contexts/AdminContext';
 import { useSharedData } from '../../contexts/SharedDataContext';
 import { ApplicationsTab } from './tabs/ApplicationsTab';
-import { ApprovalsTab } from './tabs/ApprovalsTab';
+import { ClientsTab } from './tabs/ClientsTab';
 import { DatabaseTab } from './tabs/DatabaseTab';
 
 export function AdminDashboard() {
@@ -20,6 +20,7 @@ export function AdminDashboard() {
 
   const tabs = [
     { id: 'applications', label: 'Applications', icon: FileText },
+    { id: 'clients', label: 'Clients', icon: Users },
     { id: 'database', label: 'Database', icon: Users }
   ];
 
@@ -134,6 +135,7 @@ export function AdminDashboard() {
             ) : (
               <>
             {activeTab === 'applications' && <ApplicationsTab />}
+            {activeTab === 'clients' && <ClientsTab />}
             {activeTab === 'database' && <DatabaseTab />}
               </>
             )}
