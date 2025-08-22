@@ -79,8 +79,50 @@ export function ApplicationsTab() {
       editForm.notes || undefined
     );
 
+    // Send webhook notification
+    sendWebhookNotification();
+
     setEditingLender(null);
     setEditForm({ status: '', approvalAmount: '', lenderEmail: '', notes: '' });
+  };
+
+  const sendWebhookNotification = async () => {
+    if (!editingLender) return;
+
+    try {
+      const application = applications.find(app => app.id === editingLender.applicationId);
+      const lender = application?.submittedLenders.find(l => l.id === editingLender.lenderId);
+
+      const webhookData = {
+        applicationId: editingLender.applicationId,
+        lenderId: editingLender.lenderId,
+        lenderName: lender?.name || 'Unknown',
+        status: editForm.status,
+        approvalAmount: editForm.approvalAmount ? parseInt(editForm.approvalAmount) : null,
+        lenderEmail: editForm.lenderEmail || null,
+        notes: editForm.notes || null,
+        clientName: application?.clientName || '',
+        company: application?.company || '',
+        requestedAmount: application?.amount || 0,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch('https://primary-production-c8d0.up.railway.app/webhook/approvalAdmin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (!response.ok) {
+        console.error('Webhook failed:', response.status, response.statusText);
+      } else {
+        console.log('Webhook sent successfully');
+      }
+    } catch (error) {
+      console.error('Error sending webhook:', error);
+    }
   };
 
   const handleCancelEdit = () => {
