@@ -35,15 +35,15 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'under_review':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'approved':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'funded':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'declined':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
@@ -187,7 +187,7 @@ export function Dashboard({ onStartApplication, onResubmitApplication }: Dashboa
                         ${app.amount.toLocaleString()}
                       </p>
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(app.status)}`}
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}
                       >
                         {app.status.replace('_', ' ').toUpperCase()}
                       </span>
