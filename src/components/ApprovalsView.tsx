@@ -16,6 +16,21 @@ export function ApprovalsView() {
     clientName: app.clientName
   })) : [];
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      case 'approved':
+        return 'bg-green-100 text-green-800 border border-green-200';
+      case 'funded':
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
+      case 'declined':
+        return 'bg-red-100 text-red-800 border border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
+    }
+  };
+
   // Get all approved lender submissions
   const approvedSubmissions = applications.flatMap(app =>
     app.submittedLenders
@@ -25,12 +40,10 @@ export function ApprovalsView() {
         applicationId: app.id,
         requestedAmount: app.amount,
         submittedDate: app.submittedDate,
-        clientName: app.businessName,
-        submittedDateFormatted: new Date(app.submittedDate).toLocaleDateString()
+        clientName: app.businessName
       }))
   );
 
-  // Group approvals by lender
   const approvalsByLender = approvedSubmissions.reduce((acc, submission) => {
     const lenderName = submission.name;
     if (!acc[lenderName]) {
@@ -304,8 +317,8 @@ export function ApprovalsView() {
                         </p>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           lender.status === 'funded' 
-                            ? 'bg-blue-100 text-blue-800 border border-blue-200' 
-                            : 'bg-green-100 text-green-800 border border-green-200'
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
                         }`}>
                           {lender.status.toUpperCase()}
                         </span>
