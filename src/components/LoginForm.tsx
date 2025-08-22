@@ -105,16 +105,6 @@ export function LoginForm({ onLogin }: LoginFormProps) {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => setShowRegister(true)}
-              className="flex items-center justify-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors mx-auto"
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Create New Account</span>
-            </button>
-          </div>
-
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h3 className="font-medium text-blue-900 mb-2">Demo Access</h3>
             <p className="text-sm text-blue-700">
