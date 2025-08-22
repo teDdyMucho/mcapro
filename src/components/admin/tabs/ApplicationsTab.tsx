@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, Eye, FileText, Calendar, Building2, Edit, Save, X, DollarSign, Mail } from 'lucide-react';
 import { useSharedData } from '../../../contexts/SharedDataContext';
+import { supabase } from '../../../lib/supabase';
 
 export function ApplicationsTab() {
   const { applications, updateLenderStatus, loading } = useSharedData();
