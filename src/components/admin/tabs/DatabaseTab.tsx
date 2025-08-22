@@ -245,11 +245,12 @@ export function DatabaseTab() {
                         ${app.amount.toLocaleString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          app.status === 'funded' ? 'bg-blue-100 text-blue-800' :
-                          app.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          app.status === 'declined' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          app.status === 'under_review' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                          app.status === 'approved' ? 'bg-green-100 text-green-800 border-green-200' :
+                          app.status === 'funded' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                          app.status === 'declined' ? 'bg-red-100 text-red-800 border-red-200' :
+                          'bg-gray-100 text-gray-800 border-gray-200'
                         }`}>
                           {app.status.replace('_', ' ').toUpperCase()}
                         </span>
