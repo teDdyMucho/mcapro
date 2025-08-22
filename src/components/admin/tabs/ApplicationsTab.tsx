@@ -85,7 +85,7 @@ export function ApplicationsTab() {
   const handleSaveLender = () => {
     if (!editingLender) return;
 
-    updateLenderStatus(
+    const updatePromise = updateLenderStatus(
       editingLender.applicationId,
       editingLender.lenderId,
       editForm.status,
@@ -93,7 +93,13 @@ export function ApplicationsTab() {
       editForm.lenderEmail || undefined,
       undefined, // lenderPhone - we'll add this field later if needed
       editForm.notes || undefined
-    );
+    ).then(() => {
+      // Data will be automatically refreshed by the updateLenderStatus function
+      console.log('Lender status updated successfully');
+    }).catch((error) => {
+      console.error('Error updating lender status:', error);
+      alert('Error updating lender status. Please try again.');
+    });
 
     // Send webhook notification
     sendWebhookNotification();

@@ -246,7 +246,7 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
 
       if (error) {
         console.error('Error updating lender status:', error);
-        return;
+        throw error;
       }
 
       // Update application status based on lender responses
@@ -268,16 +268,24 @@ export function SharedDataProvider({ children }: { children: React.ReactNode }) 
         }
 
         // Update application status in database
-        await supabase
+        const { error: appError } = await supabase
           .from('applications')
           .update({ status: newAppStatus })
           .eq('id', applicationId);
+
+        if (appError) {
+          console.error('Error updating application status:', appError);
+          throw appError;
+        }
       }
 
       // Refresh data
       await loadApplications();
+      
+      console.log('Lender status and data refreshed successfully');
     } catch (error) {
       console.error('Error updating lender status:', error);
+      throw error;
     }
   };
 
